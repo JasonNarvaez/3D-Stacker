@@ -9,6 +9,8 @@ volatile int current_layer = 0;
 
 void setup()
 {
+  
+  // sets pins 1-14 to output pins
   int i;
   
   for(i=0; i<14; i++)
@@ -72,24 +74,28 @@ void loop()
   while (true)
   {
     
-    effect_planboing(AXIS_Z, 400);
-    effect_planboing(AXIS_Y, 400);
-    effect_planboing(AXIS_X, 400);
+    // effect_planboing(AXIS_Z, 400);
+    // effect_planboing(AXIS_Y, 400);
+    // effect_planboing(AXIS_X, 400);
     
-    effect_blinky2();
+    // effect_blinky2();
     
-    effect_random_filler(75,1);
-    effect_random_filler(75,0);
+    // effect_random_filler(75,1);
+    // effect_random_filler(75,0);
     
-    effect_rain(100);
+    // effect_rain(100);
    
-    effect_boxside_randsend_parallel (AXIS_X, 0, 150, 1);
-    effect_boxside_randsend_parallel (AXIS_X, 1, 150, 1);
-    effect_boxside_randsend_parallel (AXIS_Y, 0, 150, 1);
-    effect_boxside_randsend_parallel (AXIS_Y, 1, 150, 1);
-    effect_boxside_randsend_parallel (AXIS_Z, 0, 150, 1);
-    effect_boxside_randsend_parallel (AXIS_Z, 1, 150, 1);
-    
+    // effect_boxside_randsend_parallel (AXIS_X, 0, 150, 1);
+    // effect_boxside_randsend_parallel (AXIS_X, 1, 150, 1);
+    // effect_boxside_randsend_parallel (AXIS_Y, 0, 150, 1);
+    // effect_boxside_randsend_parallel (AXIS_Y, 1, 150, 1);
+    // effect_boxside_randsend_parallel (AXIS_Z, 0, 150, 1);
+    // effect_boxside_randsend_parallel (AXIS_Z, 1, 150, 1);
+
+    one_by_one_turn_on_leds(1);
+    i_drew_a_green_box();
+    can_i_move_the_box();
+
   }
 }
 
@@ -201,6 +207,44 @@ void effect_boxside_randsend_parallel (char axis, int origin, int delay, int mod
 
   }
   
+}
+
+void one_by_one_turn_on_leds (int iterations)
+{
+  for (int i=0; i<iterations; i++)
+  {
+    for (int z=0; z<8; z++)
+    {
+      for (int x=0; x<8; x++)
+      {
+        for (int y=0; y<8; y++)
+        {
+          delay_ms(100);
+          setvoxel(x,y,z);
+        }
+      } 
+    }
+    fill(0x00);
+  }
+}
+
+void i_drew_a_green_box ()
+{
+  box_filled(0, 1, 1, 0, 7, 7);
+  delay_ms(3000);
+  fill(0x00);
+}
+
+void can_i_move_the_box () {
+  box_filled(0, 1, 1, 0, 7, 7);
+
+  for (int i=0; i<8; i++)
+  {
+    delay_ms(1000);
+    shift(AXIS_X,1);    
+  }
+
+  fill(0x00);
 }
 
 
