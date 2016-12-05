@@ -7,7 +7,7 @@
 volatile unsigned char cube[8][8];
 volatile int current_layer = 0;
 
-volatile int top_layer = 6;
+volatile int top_layer = 0;
 volatile int current_width = 1;
 volatile int current_speed = 750;
 volatile int current_x;
@@ -16,63 +16,57 @@ volatile int stationary[8][6];
 
 
 void setup()
-{
-  // sets pins 1-14 to output pins
-  int i;
-  
-  for(i=0; i<14; i++)
-    pinMode(i, OUTPUT);
-  
-  // pinMode(A0, OUTPUT) as specified in the arduino reference didn't work. So I accessed the registers directly.
-  DDRC = 0xff;
-  PORTC = 0x00;
-  
-  // Reset any PWM configuration that the arduino may have set up automagically!
-  TCCR2A = 0x00;
-  TCCR2B = 0x00;
+{ int i;
+//Pins 22 bis 50 als Ausgänge festsetzen
+for(i=22; i<50; i++) pinMode(i, OUTPUT);
 
-  TCCR2A |= (0x01 << WGM21); // CTC mode. clear counter on TCNT2 == OCR2A
-  OCR2A = 10; // Interrupt every 25600th cpu cycle (256*100)
-  TCNT2 = 0x00; // start counting at 0
-  TCCR2B |= (0x01 << CS22) | (0x01 << CS21); // Start the clock with a 256 prescaler
-  
-  TIMSK2 |= (0x01 << OCIE2A);
+// pinMode(A0, OUTPUT) as specified in the arduino reference didn't work. So I accessed the registers directly.
+DDRC = 0xff;
+PORTC = 0x00;
+
+// Reset any PWM configuration that the arduino may have set up automagically!
+TCCR2A = 0x00;
+TCCR2B = 0x00;
+
+// zähler, Uhr initialisieren
+TCCR2A |= (0x01 << WGM21); // CTC mode. clear counter on TCNT2 == OCR2A
+OCR2A = 10; // Interrupt every 25600th cpu cycle (256*100)
+TCNT2 = 0x00; // start counting at 0
+TCCR2B |= (0x01 << CS22) | (0x01 << CS21); // Start the clock with a 256 prescaler
+TIMSK2 |= (0x01 << OCIE2A); //Timer Interrupt Mask Register
 }
 
+//interrupt
 ISR (TIMER2_COMPA_vect)
 {
-  int i;
-  
-  // all layer selects off
-  PORTC = 0x00;
-  PORTB &= 0x0f;
-  
-  PORTB |= 0x08; // output enable off.
-  
-  for (i=0; i<8; i++)
-  {
-    PORTD = cube[current_layer][i];
-    PORTB = (PORTB & 0xF8) | (0x07 & (i+1));
-  }
-  
-  PORTB &= 0b00110111; // Output enable on.
-  
-  if (current_layer < 6)
-  {
-    PORTC = (0x01 << current_layer);
-  } else if (current_layer == 6)
-  {
-    digitalWrite(12, HIGH);
-  } else
-  {
-    digitalWrite(13, HIGH);
-  }
-  
-  current_layer++;
-  
-  if (current_layer == 8)
-    current_layer = 0;
+int i;
+// PORTA = 8x Databus (8-Bit-Latches) PIN 22-30 (bei uno Pins 0-7 PortD)
+// PORTL = 3x Adressbus + OE
+// PORTC = 8x Ebenen (Layer)
+// Char cube [ 8 ] enthält 64 Bits von Daten für die Halteanordnung
+// all layer selects off
+PORTC = 0x00;
+PORTL &= 0x0f; // PortL 3xAdressbus
+PORTL |= 0x08; // output enable off.
+
+// Zählen bis 8
+for (i=0; i<8; i++)
+{
+PORTA = cube[current_layer][i]; //(PortA = 8xDatabus) PIN 22-30 (bei uno Pins 0-7 PortD)
+PORTL = (PORTL & 0xF8) | (0x07 & (i+1)); // (i+1) => 74HC138 erhält die folgende Sequenz: 1 2 3 4 5 6 7 0 (muss immer eins voraus sein)
 }
+PORTL &= 0b00110111; // Output enable on.
+
+//ebenen
+if (current_layer < 8)
+{
+PORTC = (0x01 << current_layer);
+}
+current_layer++;
+if (current_layer == 8)
+current_layer = 0;
+}
+
 
 void loop()
 {
@@ -85,10 +79,10 @@ void loop()
     // effect_planboing(AXIS_Y, 400);
     // effect_planboing(AXIS_X, 400);
     
-     effect_blinky2();
+    // effect_blinky2();
     
     // effect_random_filler(75,1);
-    // effect_random_filler(75,0);
+//     effect_random_filler(75,0);
     
     // effect_rain(100);
    
@@ -99,13 +93,13 @@ void loop()
     // effect_boxside_randsend_parallel (AXIS_Z, 0, 150, 1);
     // effect_boxside_randsend_parallel (AXIS_Z, 1, 150, 1);
 
-    // one_by_one_turn_on_leds(1);
+//     one_by_one_turn_on_leds(1);
 //     i_drew_a_green_box();
     // can_i_move_the_box(5);
 //     turn_on_layers(1);
 
-//    bounce_stacker(top_layer, current_width, current_speed);
-//    capture();
+    bounce_stacker(top_layer, current_width, current_speed);
+    capture();
 
   }
 }
@@ -271,7 +265,7 @@ void turn_on_layers(int iterations) {
 
 void bounce_stacker(int layer, int current_width, int speed)
 {
-  if (top_layer >= 0) {
+  if (top_layer <8) {
     for (int i=0;i<7-current_width;i++)
     {
       fill(0x00);
@@ -294,7 +288,7 @@ void bounce_stacker(int layer, int current_width, int speed)
 
 void draw_stationary()
 {
-    for (int i=0; i<((8-(top_layer-2))/2); i++)
+    for (int i=0; i<(((top_layer))/2); i++)
     {
       box_filled(stationary[i][0], stationary[i][1], stationary[i][2], stationary[i][3], stationary[i][4], stationary[i][5]);
     }
@@ -304,15 +298,15 @@ void draw_stationary()
 void capture()
 {
   delay_ms(random(10000,15000));
-  int index = (8-(top_layer-2))/2;
+  int index = top_layer/2;
   stationary[index][0] = current_x;
   stationary[index][1] = 0;
   stationary[index][2] = top_layer;
   stationary[index][3] = current_x + current_width;
   stationary[index][4] = 7;
   stationary[index][5] = top_layer+1;
-  top_layer = top_layer - 2;
-  if (top_layer == -2) {
+  top_layer = top_layer + 2;
+  if (top_layer > 8) {
     delay(5000);
   }
 }
