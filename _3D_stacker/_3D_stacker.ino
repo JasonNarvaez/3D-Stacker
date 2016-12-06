@@ -354,7 +354,7 @@ void capture()
 {
   // check to see if it lines up with the previous layers
   bool linesUp = false;
-  if (top_layer = 0)
+  if (top_layer == 0)
     linesUp = true;
   if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + current_width)) )
     linesUp = true;
