@@ -12,11 +12,16 @@ volatile unsigned char cube[8][8];
 volatile int current_layer = 0;
 
 volatile int top_layer = 0;
+volatile int top_layer_x;
+
 volatile int current_width = 1;
 volatile int current_speed = 750;
 volatile int current_x;
 
 volatile int stationary[8][6];
+
+volatile bool gameStatus = true; // true = running, false = game over
+volatile bool gameOver; // false = lose , true = win
 
 void setup()
 { int i;
@@ -87,7 +92,7 @@ void loop()
     // effect_planboing(AXIS_Y, 400);
     // effect_planboing(AXIS_X, 400);
     
-    // effect_blinky2();
+//     effect_blinky2();
     
     // effect_random_filler(75,1);
 //     effect_random_filler(75,0);
@@ -106,18 +111,37 @@ void loop()
     // can_i_move_the_box(5);
 //     turn_on_layers(1);
     //effect_stringfly2("HHHH");
-    
-    if(buttonToggled == true){
-      //capture();
 
-      buttonToggled = false;
+    if (gameStatus)
+    {
+      if(buttonToggled == true)
+      {
+        //capture();
+
+        buttonToggled = false;
+      }
+      
+      bounce_stacker(top_layer, current_width, current_speed);
+      
+      if(top_layer > 8)
+      {
+        fill(0x00);
+        buttonToggled = false;
+      }
+      
+      //capture();
     }
-    bounce_stacker(top_layer, current_width, current_speed);
-    if(top_layer > 8){
-      fill(0x00);
-      buttonToggled = false;
+    else
+    {
+      if (gameOver) {
+        fill(0xff);
+      }
+      else {
+        fill(0x00);
+      }
     }
-    //capture();
+    
+   
 
   }
 }
@@ -328,18 +352,48 @@ void draw_stationary()
 
 void capture()
 {
-  delay_ms(random(10000,15000));
-  int index = top_layer/2;
-  stationary[index][0] = current_x;
-  stationary[index][1] = 0;
-  stationary[index][2] = top_layer;
-  stationary[index][3] = current_x + current_width;
-  stationary[index][4] = 7;
-  stationary[index][5] = top_layer+1;
-  top_layer = top_layer + 2;
-  if (top_layer > 8) {
-    delay(5000);
+  // check to see if it lines up with the previous layers
+  bool linesUp = false;
+  if (top_layer = 0)
+    linesUp = true;
+  if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + current_width)) )
+    linesUp = true;
+
+  if (linesUp) {
+    delay_ms(random(10000,15000));
+    int index = top_layer/2;
+    stationary[index][0] = current_x;
+    stationary[index][1] = 0;
+    stationary[index][2] = top_layer;
+    stationary[index][3] = current_x + current_width;
+    stationary[index][4] = 7;
+    stationary[index][5] = top_layer+1;
+    top_layer = top_layer + 2;
+
+    current_speed = current_speed - 150;
+    
+    if (top_layer > 8) {
+      gameStatus = false;
+      gameOver = true;
+      delay(5000);
+    }
+    else {
+      box_falldown();
+      gameStatus = false;
+      gameOver = false;
+    }
   }
+}
+
+void box_falldown ()
+{
+  for (int i=top_layer; i>=0; i--)
+  {
+    fill(0x00);
+    draw_stationary();
+    box_filled(current_x, 0, i, (current_x + current_width), 7, (i + 1));
+  }
+  
 }
 
 void effect_rain (int iterations)
