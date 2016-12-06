@@ -4,6 +4,10 @@
 #define AXIS_Y 2
 #define AXIS_Z 3
 
+const byte interruptPin = 19;//button
+
+volatile bool buttonToggled = false;
+
 volatile unsigned char cube[8][8];
 volatile int current_layer = 0;
 
@@ -13,7 +17,6 @@ volatile int current_speed = 750;
 volatile int current_x;
 
 volatile int stationary[8][6];
-
 
 void setup()
 { int i;
@@ -34,6 +37,11 @@ OCR2A = 10; // Interrupt every 25600th cpu cycle (256*100)
 TCNT2 = 0x00; // start counting at 0
 TCCR2B |= (0x01 << CS22) | (0x01 << CS21); // Start the clock with a 256 prescaler
 TIMSK2 |= (0x01 << OCIE2A); //Timer Interrupt Mask Register
+
+//set pin mode of interrupt pin
+pinMode(interruptPin,INPUT_PULLUP); 
+//attach button interrupt
+attachInterrupt(digitalPinToInterrupt(interruptPin), buttonPressed, RISING);
 }
 
 //interrupt
@@ -97,9 +105,19 @@ void loop()
 //     i_drew_a_green_box();
     // can_i_move_the_box(5);
 //     turn_on_layers(1);
+    //effect_stringfly2("HHHH");
+    
+    if(buttonToggled == true){
+      //capture();
 
+      buttonToggled = false;
+    }
     bounce_stacker(top_layer, current_width, current_speed);
-    capture();
+    if(top_layer > 8){
+      fill(0x00);
+      buttonToggled = false;
+    }
+    //capture();
 
   }
 }
@@ -286,6 +304,19 @@ void bounce_stacker(int layer, int current_width, int speed)
   }
 }
 
+void buttonPressed(){
+   static unsigned long last_interrupt_time = 0;
+   unsigned long interrupt_time = millis();
+   // If interrupts come faster than 200ms, assume it's a bounce and ignore
+   if (interrupt_time - last_interrupt_time > 300) 
+   {
+      buttonToggled = true;
+      capture();
+   }
+   last_interrupt_time = interrupt_time;
+    
+}
+
 void draw_stationary()
 {
     for (int i=0; i<(((top_layer))/2); i++)
@@ -417,6 +448,25 @@ void effect_planboing (int plane, int speed)
     fill(0x00);
         setplane(plane,i);
     delay_ms(speed);
+  }
+}
+
+void sendvoxel_z (unsigned char x, unsigned char y, unsigned char z, int delay)
+{
+  int i, ii;
+  for (i=0; i<8; i++)
+  {
+    if (z == 7)
+    {
+      ii = 7-i;
+      clrvoxel(x,y,ii+1);
+    } else
+    {
+      ii = i;
+      clrvoxel(x,y,ii-1);
+    }
+    setvoxel(x,y,ii);
+    delay_ms(delay);
   }
 }
 
