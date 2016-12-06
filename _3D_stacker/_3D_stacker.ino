@@ -377,11 +377,11 @@ void capture()
       gameOver = true;
       delay(5000);
     }
-    else {
-      box_falldown();
-      gameStatus = false;
-      gameOver = false;
-    }
+  }
+  else {
+    box_falldown();
+    gameStatus = false;
+    gameOver = false;
   }
 }
 
