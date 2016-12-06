@@ -14,8 +14,9 @@ volatile int current_layer = 0;
 volatile int top_layer = 0;
 volatile int top_layer_x;
 
-volatile int current_width = 1;
-volatile int current_speed = 750;
+volatile int current_width = 2;
+volatile int prev_width = 2;
+volatile int current_speed = 1500;
 volatile int current_x;
 
 volatile int stationary[8][6];
@@ -134,10 +135,10 @@ void loop()
     else
     {
       if (gameOver) {
-        fill(0xff);
+        effect_random_filler(75,1);
       }
       else {
-        fill(0x00);
+        box_falldown();
       }
     }
     
@@ -350,38 +351,72 @@ void draw_stationary()
   
 }
 
-void capture()
+void reset_game ()
 {
-  // check to see if it lines up with the previous layers
-  bool linesUp = false;
-  if (top_layer == 0)
-    linesUp = true;
-  if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + current_width)) )
-    linesUp = true;
-
-  if (linesUp) {
-    delay_ms(random(10000,15000));
-    int index = top_layer/2;
-    stationary[index][0] = current_x;
-    stationary[index][1] = 0;
-    stationary[index][2] = top_layer;
-    stationary[index][3] = current_x + current_width;
-    stationary[index][4] = 7;
-    stationary[index][5] = top_layer+1;
-    top_layer = top_layer + 2;
-
-    current_speed = current_speed - 150;
-    
-    if (top_layer > 8) {
-      gameStatus = false;
-      gameOver = true;
-      delay(5000);
+  fill(0x00);
+  for (int i=0; i<8; i++)
+  {
+    for (int j=0; j<6; j++)
+    {
+      stationary[i][j] = 0;
     }
   }
-  else {
-    box_falldown();
-    gameStatus = false;
-    gameOver = false;
+  prev_width =  2;
+  current_width = 2;
+  current_speed = 1500;
+  top_layer = 0 ;
+  gameStatus = true;
+}
+
+void capture()
+{
+  if (gameStatus == false)
+    reset_game();
+  else
+  {
+    // check to see if it lines up with the previous layers
+    bool linesUp = false;
+    if (top_layer == 0)
+      linesUp = true;
+    if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + current_width)) )
+      linesUp = true;
+    if ( ((current_x+current_width) >= top_layer_x) && ((current_x+current_width) <= (top_layer_x + current_width)) )
+      linesUp = true;
+  
+    if (linesUp) {
+      int index = top_layer/2;
+      stationary[index][0] = current_x;
+      stationary[index][1] = 0;
+      stationary[index][2] = top_layer;
+      stationary[index][3] = current_x + current_width;
+      stationary[index][4] = 7;
+      stationary[index][5] = top_layer+1;
+      top_layer = top_layer + 2;
+      top_layer_x = current_x;
+      current_speed = current_speed - 100;
+     
+      if (current_width > 1)
+      {
+        prev_width = current_width;
+        current_width = current_width - 1;
+      }
+
+      if (top_layer == 6)
+      {
+        prev_width = current_width;
+        current_width = 0;
+      }
+      
+      if (top_layer >= 8) {
+        gameStatus = false;
+        gameOver = true;
+      }
+    }
+    else {
+      gameStatus = false;
+      gameOver = false;
+  //    box_falldown();
+    }
   }
 }
 
@@ -392,6 +427,7 @@ void box_falldown ()
     fill(0x00);
     draw_stationary();
     box_filled(current_x, 0, i, (current_x + current_width), 7, (i + 1));
+    delay_ms(10000);
   }
   
 }
