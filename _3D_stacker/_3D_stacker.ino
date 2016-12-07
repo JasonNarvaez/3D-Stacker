@@ -1,5 +1,6 @@
 #include <avr/interrupt.h>
 #include <string.h>
+#include <math.h>
 #define AXIS_X 1
 #define AXIS_Y 2
 #define AXIS_Z 3
@@ -23,7 +24,7 @@ volatile int stationary[8][6];
 
 volatile bool gameStatus = true; // true = running, false = game over
 volatile bool gameOver; // false = lose , true = win
-
+volatile bool initialDemo = true;
 void setup()
 { int i;
 //Pins 22 bis 50 als Ausgänge festsetzen
@@ -111,8 +112,14 @@ void loop()
 //     i_drew_a_green_box();
     // can_i_move_the_box(5);
 //     turn_on_layers(1);
-    //effect_stringfly2("HHHH");
-
+    //effect_stringfly2("1111");
+    if(initialDemo == true){
+      for(int i=0;i<3;i++){
+        effect_loadbar(1000);  
+      }
+      initialDemo = false;  
+    }
+    
     if (gameStatus)
     {
       if(buttonToggled == true)
@@ -136,6 +143,7 @@ void loop()
     {
       if (gameOver) {
         effect_random_filler(75,1);
+        fireworks (4, 4, 400);
       }
       else {
         box_falldown();
@@ -333,7 +341,7 @@ void buttonPressed(){
    static unsigned long last_interrupt_time = 0;
    unsigned long interrupt_time = millis();
    // If interrupts come faster than 200ms, assume it's a bounce and ignore
-   if (interrupt_time - last_interrupt_time > 300) 
+   if (interrupt_time - last_interrupt_time > 240) 
    {
       buttonToggled = true;
       capture();
@@ -558,6 +566,115 @@ void sendvoxel_z (unsigned char x, unsigned char y, unsigned char z, int delay)
     setvoxel(x,y,ii);
     delay_ms(delay);
   }
+}
+
+
+
+// Light all leds layer by layer,
+// then unset layer by layer
+void effect_loadbar(int delay)
+{
+  fill(0x00);
+  
+  int z,y;
+  
+  for (z=0;z<8;z++)
+  {
+    for (y=0;y<8;y++)
+      cube[z][y] = 0xff;
+      
+    delay_ms(delay);
+  }
+  
+  delay_ms(delay*3);
+  
+  for (z=0;z<8;z++)
+  {
+    for (y=0;y<8;y++)
+      cube[z][y] = 0x00;
+      
+    delay_ms(delay);
+  }
+}
+
+void fireworks (int iterations, int n, int delay)
+{
+  fill(0x00);
+
+  int i,f,e;
+
+  float origin_x = 3;
+  float origin_y = 3;
+  float origin_z = 3;
+
+  int rand_y, rand_x, rand_z;
+
+  float slowrate, gravity;
+
+  // Particles and their position, x,y,z and their movement, dx, dy, dz
+  float particles[n][6];
+
+  for (i=0; i<iterations; i++)
+  {
+
+    origin_x = rand()%4;
+    origin_y = rand()%4;
+    origin_z = rand()%2;
+    origin_z +=5;
+        origin_x +=2;
+        origin_y +=2;
+
+    // shoot a particle up in the air
+    for (e=0;e<origin_z;e++)
+    {
+      setvoxel(origin_x,origin_y,e);
+      delay_ms(600+500*e);
+      fill(0x00);
+    }
+
+    // Fill particle array
+    for (f=0; f<n; f++)
+    {
+      // Position
+      particles[f][0] = origin_x;
+      particles[f][1] = origin_y;
+      particles[f][2] = origin_z;
+      
+      rand_x = rand()%200;
+      rand_y = rand()%200;
+      rand_z = rand()%200;
+
+      // Movement
+      particles[f][3] = 1-(float)rand_x/100; // dx
+      particles[f][4] = 1-(float)rand_y/100; // dy
+      particles[f][5] = 1-(float)rand_z/100; // dz
+    }
+
+    // explode
+    for (e=0; e<25; e++)
+    {
+      slowrate = 1+tan((e+0.1)/20)*10;
+      
+      gravity = tan((e+0.1)/20)/2;
+
+      for (f=0; f<n; f++)
+      {
+        particles[f][0] += particles[f][3]/slowrate;
+        particles[f][1] += particles[f][4]/slowrate;
+        particles[f][2] += particles[f][5]/slowrate;
+        particles[f][2] -= gravity;
+
+        setvoxel(particles[f][0],particles[f][1],particles[f][2]);
+
+
+      }
+
+      delay_ms(delay);
+      fill(0x00);
+    }
+
+  }
+
 }
 
 // ==========================================================================================
