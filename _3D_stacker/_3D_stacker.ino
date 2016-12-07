@@ -7,8 +7,6 @@
 
 const byte interruptPin = 19;//button
 
-volatile bool buttonToggled = false;
-
 volatile unsigned char cube[8][8];
 volatile int current_layer = 0;
 
@@ -25,6 +23,10 @@ volatile int stationary[8][6];
 volatile bool gameStatus = true; // true = running, false = game over
 volatile bool gameOver; // false = lose , true = win
 volatile bool initialDemo = true;
+volatile bool stopBouncing = false;
+
+volatile long last_interrupt_time = 0;
+
 void setup()
 { int i;
 //Pins 22 bis 50 als Ausgänge festsetzen
@@ -48,7 +50,7 @@ TIMSK2 |= (0x01 << OCIE2A); //Timer Interrupt Mask Register
 //set pin mode of interrupt pin
 pinMode(interruptPin,INPUT_PULLUP); 
 //attach button interrupt
-attachInterrupt(digitalPinToInterrupt(interruptPin), buttonPressed, RISING);
+attachInterrupt(digitalPinToInterrupt(interruptPin), buttonPressed, FALLING);
 }
 
 //interrupt
@@ -115,26 +117,19 @@ void loop()
     //effect_stringfly2("1111");
     if(initialDemo == true){
       for(int i=0;i<3;i++){
-        effect_loadbar(1000);  
+        effect_loadbar(2000);  
       }
       initialDemo = false;  
     }
     
     if (gameStatus)
     {
-      if(buttonToggled == true)
-      {
-        //capture();
-
-        buttonToggled = false;
+      if (top_layer < 8) {
+        bounce_stacker(top_layer, current_width, current_speed);
       }
-      
-      bounce_stacker(top_layer, current_width, current_speed);
-      
-      if(top_layer > 8)
+      else
       {
         fill(0x00);
-        buttonToggled = false;
       }
       
       //capture();
@@ -142,6 +137,7 @@ void loop()
     else
     {
       if (gameOver) {
+        delay_ms(15000);
         effect_random_filler(75,1);
         fireworks (4, 4, 400);
       }
@@ -315,38 +311,46 @@ void turn_on_layers(int iterations) {
 }
 
 void bounce_stacker(int layer, int current_width, int speed)
-{
+{ 
+  stopBouncing = false;
   if (top_layer <8) {
     for (int i=0;i<7-current_width;i++)
     {
-      fill(0x00);
-      draw_stationary();
-      box_filled(i, 0, layer, i+current_width, 7, (layer+1));
-      current_x = i;
-      delay_ms(speed);
+      if (gameStatus && !stopBouncing) {
+        noInterrupts();
+        fill(0x00);
+        draw_stationary();
+        box_filled(i, 0, layer, i+current_width, 7, (layer+1));
+        current_x = i;
+        interrupts();
+        delay_ms(speed);
+      }
     }
     
     for (int i=7-current_width;i>=0;i--)
     {
-      fill(0x00);
-      draw_stationary();
-      box_filled(i, 0, layer, i+current_width, 7, (layer+1));
-      current_x = i;
-      delay_ms(speed);
+      if (gameStatus && !stopBouncing) {
+        noInterrupts();
+        fill(0x00);
+        draw_stationary();
+        box_filled(i, 0, layer, i+current_width, 7, (layer+1));
+        current_x = i;
+        interrupts();
+        delay_ms(speed);
+      }
     }
   }
 }
 
 void buttonPressed(){
-   static unsigned long last_interrupt_time = 0;
    unsigned long interrupt_time = millis();
    // If interrupts come faster than 200ms, assume it's a bounce and ignore
    if (interrupt_time - last_interrupt_time > 240) 
    {
-      buttonToggled = true;
+      last_interrupt_time = interrupt_time;
       capture();
    }
-   last_interrupt_time = interrupt_time;
+   
     
 }
 
@@ -381,16 +385,18 @@ void capture()
   if (gameStatus == false)
     reset_game();
   else
-  {
+  {    
+    stopBouncing = true;
+    
     // check to see if it lines up with the previous layers
     bool linesUp = false;
     if (top_layer == 0)
       linesUp = true;
-    if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + current_width)) )
+    if ( (current_x >= top_layer_x) && (current_x <= (top_layer_x + prev_width)) )
       linesUp = true;
-    if ( ((current_x+current_width) >= top_layer_x) && ((current_x+current_width) <= (top_layer_x + current_width)) )
+    if ( ((current_x+current_width) >= top_layer_x) && ((current_x+current_width) <= (top_layer_x + prev_width)) )
       linesUp = true;
-  
+
     if (linesUp) {
       int index = top_layer/2;
       stationary[index][0] = current_x;
@@ -401,8 +407,8 @@ void capture()
       stationary[index][5] = top_layer+1;
       top_layer = top_layer + 2;
       top_layer_x = current_x;
-      current_speed = current_speed - 100;
-     
+      current_speed = current_speed - 300;
+
       if (current_width > 1)
       {
         prev_width = current_width;
@@ -580,25 +586,20 @@ void effect_loadbar(int delay)
   
   for (z=0;z<8;z++)
   {
-    for (y=0;y<8;y++)
-      cube[z][y] = 0xff;
-      
+    setplane_z(z);
     delay_ms(delay);
   }
   
-  delay_ms(delay*3);
-  
-  for (z=0;z<8;z++)
+  for (z=7;z>=0;z--)
   {
-    for (y=0;y<8;y++)
-      cube[z][y] = 0x00;
-      
+    clrplane_z(z);
     delay_ms(delay);
   }
 }
 
 void fireworks (int iterations, int n, int delay)
 {
+  
   fill(0x00);
 
   int i,f,e;
@@ -616,6 +617,7 @@ void fireworks (int iterations, int n, int delay)
 
   for (i=0; i<iterations; i++)
   {
+    if (gameStatus == false) {
 
     origin_x = rand()%4;
     origin_y = rand()%4;
@@ -671,6 +673,7 @@ void fireworks (int iterations, int n, int delay)
 
       delay_ms(delay);
       fill(0x00);
+    }
     }
 
   }
